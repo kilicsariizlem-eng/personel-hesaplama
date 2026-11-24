@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Şube Destek Personeli Hesaplama</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mu:#667085;--bd:#dfe3ea;--ac:#1f5eff;--acs:#e8eefe;--wa:#b54708;--was:#fef0c7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b1f29;--tx:#e8ebf2;--mu:#98a2b3;--bd:#2c3240;--ac:#6b93ff;--acs:#202b4a;--wa:#fdb022;--was:#3a2d0c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12151c;--card:#1b1f29;--tx:#e8ebf2;--mu:#98a2b3;--bd:#2c3240;--ac:#6b93ff;--acs:#202b4a;--wa:#fdb022;--was:#3a2d0c;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:900px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:20px;margin:0 0 2px}h2{font-size:15px;margin:18px 0 6px}
+.sub,.mu,.note{color:var(--mu);font-size:13px}.sub{margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:3px}
+input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.res{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.big{font-size:56px;font-weight:700;color:var(--ac);line-height:1}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{color:var(--mu);font-weight:600;font-size:12px}
+.btn{border:1px solid var(--ac);background:var(--ac);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+.btn.o{background:transparent;color:var(--ac)}
+.tag{display:inline-block;background:var(--acs);color:var(--ac);border-radius:6px;padding:1px 8px;font-weight:600}
+.fl{background:var(--was);color:var(--wa);border-radius:8px;padding:6px 10px;font-size:13px;margin-top:6px}
+.bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;min-width:80px}.bar i{display:block;height:100%;background:var(--ac)}
+.pr{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:2px 14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd)}
+.pr .h{grid-column:1/-1;font-size:12px;color:var(--mu)}
+td.w{white-space:normal;min-width:260px}
+.tag.k{background:var(--was);color:var(--wa)}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>Şube Destek Personeli Hesaplama</h1>
+<div class="sub">Temizlik ve çay ikramı personeli. Şube bilgilerini girin, gereken personel sayısı hesaplansın.</div>
+<div class="tabs" id="tabs"><button data-t="calc" class="on">Tek Şube</button><button data-t="bulk">Birden Çok Şube</button><button data-t="par">Ayarlar</button></div>
+<div id="v"></div>
+</div>
+<script id="core">
+var DEF={saat:9,yemek:60,mola:30,verim:90,dkM2:0.25,dkCal:1.5,dkKat:10,mutfak:30,ikramCal:3.15,hedef:80,adim:0.5,asgari:1,esikOn:1,esikAlan:300,esikCal:25,esikN:2,pikDk:240,pikOran:70,katAlanMin:100,doluUyari:90};
+function capOf(P){return(P.saat*60-P.yemek-P.mola)*P.verim/100}
+function compute(P,v){
+var alan=+v.alan||0,kat=+v.kat||0,cal=+v.cal||0,cap=capOf(P),ikram=cal*P.ikramCal;
+var comp=[["Temizlik (alan)",alan*P.dkM2],["WC, çöp, ortak alan (çalışan)",cal*P.dkCal],["Katlar",kat*P.dkKat],["Mutfak ve çay hazırlığı",P.mutfak],["Müşteri çayı ve ikram",ikram]];
+var yuk=0;comp.forEach(function(c){yuk+=c[1]});
+var fte=cap>0?yuk/cap:0,s=P.adim>0?P.adim:0.5;
+var n=Math.max(P.asgari,Math.ceil(fte/(P.hedef/100)/s-1e-9)*s),fl=[];
+if(+P.esikOn===1&&alan>P.esikAlan&&cal>P.esikCal&&n<P.esikN){n=P.esikN;fl.push({t:"Alan "+P.esikAlan+" m² ve çalışan "+P.esikCal+" kişiden fazla olduğu için en az "+P.esikN+" kişi verildi",s:"İkinci personel kuralı"})}
+var pik=ikram+P.mutfak,lim=P.pikDk*P.pikOran/100;
+if(pik>lim&&n<2){n=2;fl.push({t:"Yoğun saatlerde çay ve ikram işi tek kişiye fazla gelir ("+Math.round(pik)+" dk), en az 2 kişi verildi",s:"Yoğun saat"})}
+var dol=cap>0?yuk/(n*cap)*100:0;
+if(kat>0&&alan/kat<P.katAlanMin)fl.push({t:"Kat başına alan "+Math.round(alan/kat)+" m², kat sayısı yüksek görünüyor",s:"Kat sayısı"});
+if(dol>P.doluUyari)fl.push({t:"Personel doluluğu yüksek (%"+Math.round(dol)+")",s:"Yüksek doluluk"});
+return{yuk:yuk,fte:fte,n:n,dol:dol,comp:comp,fl:fl,cap:cap}}
+</script>
+<script>
+var P=load(),tab="calc",inp={},bulkTxt=["Şube 1\t300\t2\t25","Şube 2\t320\t2\t26","Şube 3\t400\t2\t50","Şube 4\t600\t2\t30","Şube 5\t1000\t3\t60","Şube 6\t1800\t4\t120"].join("\n");
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function load(){try{var s=localStorage.getItem("sdp_v3");if(s)return Object.assign(clone(DEF),JSON.parse(s))}catch(e){}return clone(DEF)}
+function save(){try{localStorage.setItem("sdp_v3",JSON.stringify(P))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function f(n){return String(Math.round(n*100)/100).replace(".",",")}
+function viewCalc(){
+var d=[["alan","Şube alanı (m²)"],["kat","Kat sayısı"],["cal","Çalışan sayısı"]];
+return'<div class="card"><div class="g">'+d.map(function(x){return'<div><label>'+x[1]+'</label><input type="number" min="0" data-k="'+x[0]+'" value="'+(inp[x[0]]||"")+'"></div>'}).join("")+'</div></div><div id="out"></div>'}
+function outCalc(){
+var r=compute(P,inp),h='<div class="card"><div class="res"><div><div class="big">'+f(r.n)+'</div><div class="mu">destek personeli</div></div><div>Günlük toplam iş: <b>'+Math.round(r.yuk)+' dk</b><br>1 kişinin günlük çalışabileceği süre: <b>'+Math.round(r.cap)+' dk</b><br>Personelin doluluk oranı: <b>%'+Math.round(r.dol)+'</b></div></div>';
+r.fl.forEach(function(x){h+='<div class="fl">'+esc(x.t)+'</div>'});
+h+='<h2>Günlük iş dağılımı</h2><div class="tw"><table><tr><th>İş</th><th>Dakika</th><th>Pay</th><th></th></tr>';
+r.comp.forEach(function(c){var p=r.yuk?c[1]/r.yuk*100:0;h+='<tr><td>'+esc(c[0])+'</td><td>'+Math.round(c[1])+'</td><td>%'+Math.round(p)+'</td><td><div class="bar"><i style="width:'+p+'%"></i></div></td></tr>'});
+document.getElementById("out").innerHTML=h+'</table></div></div>'}
+function parseBulk(t){var rows=[];t.split(/\r?\n/).forEach(function(l){if(!l.trim())return;var p=l.indexOf("\t")>=0?l.split("\t"):l.indexOf(";")>=0?l.split(";"):l.split(",");
+var nums=p.slice(1).map(function(x){return parseFloat(String(x).replace(",","."))});
+if(!nums.length||nums.every(isNaN))return;
+var v={alan:nums[0]||0,kat:nums[1]||0,cal:nums[2]||0};rows.push({name:p[0].trim(),v:v,r:compute(P,v)})});return rows}
+function viewBulk(){return'<div class="card"><label>Şube listesi (Excel’den yapıştırın). Sütunlar sırayla: Şube adı, alan (m²), kat sayısı, çalışan sayısı</label><textarea id="bt">'+esc(bulkTxt)+'</textarea></div><div id="bo"></div>'}
+function outBulk(){
+var rows=parseBulk(bulkTxt),tot=0,h='<div class="card"><div class="tw"><table><tr><th>Şube</th><th>m²</th><th>Kat</th><th>Çalışan</th><th>Günlük iş (dk)</th><th>Doluluk</th><th>Personel</th><th>Açıklama</th></tr>';
+rows.forEach(function(x){tot+=x.r.n;h+='<tr><td>'+esc(x.name)+'</td><td>'+x.v.alan+'</td><td>'+x.v.kat+'</td><td>'+x.v.cal+'</td><td>'+Math.round(x.r.yuk)+'</td><td>%'+Math.round(x.r.dol)+'</td><td><span class="tag">'+f(x.r.n)+'</span></td><td>'+esc(x.r.fl.map(function(m){return m.s}).join(", "))+'</td></tr>'});
+h+='<tr><td><b>Toplam personel</b></td><td colspan="5"></td><td><b>'+f(tot)+'</b></td><td></td></tr></table></div><p><button class="btn o" id="cp">Sonuçları kopyala</button> <span class="mu" id="cpm"></span></p></div>';
+document.getElementById("bo").innerHTML=h;
+document.getElementById("cp").onclick=function(){var t="Şube\tPersonel\n"+rows.map(function(x){return x.name+"\t"+f(x.r.n)}).join("\n"),m=document.getElementById("cpm");
+function fb(){var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");m.textContent="Kopyalandı"}catch(e){m.textContent="Kopyalanamadı"}document.body.removeChild(ta)}
+try{navigator.clipboard.writeText(t).then(function(){m.textContent="Kopyalandı"},fb)}catch(e){fb()}}}
+var YN=function(a,b){return[[a[0],a[1]],[b[0],b[1]]]};
+var DEFS=[["Çalışma düzeni",[["saat","Günlük çalışma süresi (saat)","Örnek: 09.00–18.00 için 9",1],["yemek","Öğle yemeği (dakika)","",1],["mola","Diğer molalar toplamı (dakika)","Örnek: iki mola, 15 + 15 = 30",1]]],
+["Süreler (günlük)",[["dkM2","100 m² alanın temizliği (dakika)","",100],["dkCal","10 çalışanın yarattığı iş: WC, çöp, ortak alan (dakika)","",10],["dkKat","Her kat için ek süre (dakika)","Merdiven, malzeme taşıma, çöp toplama",1],["mutfak","Mutfak ve çay hazırlığı (dakika)","Demleme, bardak yıkama",1],["ikramCal","10 çalışanlı şubede müşteri çayı ve ikram (dakika)","Çalışan sayısı arttıkça müşteri sayısı da artar",10]]],
+["Kurallar",[["asgari","Her şubede en az personel","",1],["hedef","Bir personelin hedef doluluğu (%)","Personel çalışma süresinin bu kadarında iş yapar, kalanı bekleme ve toparlanma payıdır",1],["adim","Yarım personel verilebilsin mi?","",1,YN([0.5,"Evet"],[1,"Hayır"])],["esikOn","İkinci personel kuralı","Alan ve çalışan sayısı birlikte aşılınca en az bu kadar personel",1,YN([1,"Açık"],[0,"Kapalı"])],["esikAlan","Kural için alan (m²) bundan büyük","",1],["esikCal","Kural için çalışan sayısı bundan fazla","",1],["esikN","Kural uygulanınca en az personel","",1]]]];
+function basis(){
+var net=P.saat*60-P.yemek-P.mola,cap=capOf(P),lim=P.pikDk*P.pikOran/100,ik=P.ikramCal*10;
+var a=[["Vardiya süresi",P.saat*60],["Öğle yemeği",-P.yemek],["Diğer molalar",-P.mola],["Net çalışma süresi",net],["Hazırlık ve toparlanma payı (%"+(100-P.verim)+")",-(net-cap)],["Verimli çalışma süresi",cap],["Hedef doluluk (%"+P.hedef+"): bir personele yüklenebilecek günlük iş",cap*P.hedef/100]];
+var h='<div class="card"><h2 style="margin-top:0">Bir personelin günü</h2><div class="tw"><table><tr><th>Kalem</th><th>Dakika</th></tr>';
+a.forEach(function(r,i){var b=(i===3||i===5||i===6),o=b?'<b>':'',c=b?'</b>':'';h+='<tr><td>'+o+r[0]+c+'</td><td>'+o+f(r[1])+c+'</td></tr>'});
+h+='</table></div></div>';
+var d=[["Verimli çalışma süresi",f(cap)+" dk","İş etüdü standartları kişisel ihtiyaç, yorgunluk ve beklemeler için yaklaşık %15 pay öngörür. Temizlik standartları (APPA/ISSA) günde 400–420 verimli dakika kabul eder.","Literatür"],
+["Hedef doluluk","%"+P.hedef,"Çay ve ikram talebi düzensiz gelir. Kuyruk teorisinde kullanım yaklaşık %80’i aşınca bekleme hızla artar; tek personelli şube küçük bir sistem olduğu için %80–85 aralığının alt ucu seçilir.","Literatür"],
+["Rutin temizlik","100 m² = "+f(P.dkM2*100)+" dk","Günlük rutin temizlik hızı saatte yaklaşık "+f(P.dkM2>0?60/P.dkM2:0)+" m² (süpürme, paspas, silme). Alan türüne göre değişir.","Kabul"],
+["WC, çöp, ortak alan","10 çalışan = "+f(P.dkCal*10)+" dk","Kullanım yoğunluğu çalışan sayısıyla artar.","Kabul"],
+["Katlar","Kat başı "+f(P.dkKat)+" dk","Merdiven, malzeme taşıma ve çöp toplama her kat için tekrarlanır.","Kabul"],
+["Mutfak ve çay hazırlığı",f(P.mutfak)+" dk","Demleme ve bardak yıkama günlük sabit işlerdir.","Kabul"],
+["Müşteri çayı ve ikram","10 çalışan = "+f(ik)+" dk","Müşteri sayısı çalışan sayısıyla birlikte artar. Başlangıç değeri: çalışan başına günde 6 müşteri × %35 ikram oranı × 1,5 dk.","Kabul"],
+["Yoğun saat sınırı",f(lim)+" dk","Müşteri yoğun saatlerde (örn. 10–12 ve 14–16) ikram ve mutfak işi bu süreyi aşarsa tek kişi yetmez, en az 2 kişi verilir.","Kabul"],
+["İkinci personel kuralı",+P.esikOn===1?"Açık":"Kapalı","Alan "+P.esikAlan+" m² ve çalışan sayısı "+P.esikCal+" kişiyi aşan şubelerde operasyon en az "+P.esikN+" personel talep eder.","Operasyon"]];
+h+='<div class="card"><h2 style="margin-top:0">Hesabın dayanağı</h2><div class="tw"><table><tr><th>Ayar</th><th>Değer</th><th>Dayanak</th><th>Tür</th></tr>';
+d.forEach(function(r){h+='<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="w">'+r[2]+'</td><td><span class="tag'+(r[3]==="Kabul"?' k':'')+'">'+r[3]+'</span></td></tr>'});
+return h+'</table></div></div>'}
+function viewPar(){
+var h='<div class="card">';
+DEFS.forEach(function(g){h+='<h2 style="margin-top:6px">'+g[0]+'</h2>';g[1].forEach(function(r){
+var val=Math.round(P[r[0]]*r[3]*100)/100,ctl;
+if(r[4]){ctl='<select data-p="'+r[0]+'" data-m="'+r[3]+'">'+r[4].map(function(o){return'<option value="'+o[0]+'"'+(+P[r[0]]===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join("")+'</select>'}
+else ctl='<input type="number" step="any" min="0" data-p="'+r[0]+'" data-m="'+r[3]+'" value="'+val+'">';
+h+='<div class="pr"><div>'+r[1]+'</div>'+ctl+(r[2]?'<div class="h">'+r[2]+'</div>':'')+'</div>'})});
+return h+'</div>'+basis()+'<button class="btn o" id="rs">İlk değerlere dön</button>'}
+function render(){var v=document.getElementById("v");v.innerHTML=tab==="calc"?viewCalc():tab==="bulk"?viewBulk():viewPar();
+if(tab==="calc")outCalc();if(tab==="bulk")outBulk();
+Array.prototype.forEach.call(document.querySelectorAll("#tabs button"),function(b){b.className=b.dataset.t===tab?"on":""})}
+document.getElementById("tabs").onclick=function(e){var t=e.target.dataset.t;if(t){tab=t;render()}};
+var V=document.getElementById("v");
+V.addEventListener("input",function(e){var d=e.target.dataset;if(d.k){inp[d.k]=e.target.value;outCalc()}if(e.target.id==="bt"){bulkTxt=e.target.value;outBulk()}});
+V.addEventListener("change",function(e){var d=e.target.dataset;if(!d.p)return;var n=parseFloat(e.target.value);if(isNaN(n))n=0;P[d.p]=n/(+d.m||1);save();render()});
+V.addEventListener("click",function(e){if(e.target.id==="rs"){P=clone(DEF);save();render()}});
+render();
+</script>
+</body>
+</html>
